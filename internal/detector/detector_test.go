@@ -79,16 +79,18 @@ func TestFindJSONSpans_EscapedQuoteInsideString(t *testing.T) {
 	}
 }
 
-func TestFindJSONSpans_InvalidJSONSkipped(t *testing.T) {
-	// CSS-style braces are not valid JSON and should be rejected
+func TestFindJSONSpans_BraceCounterTrusted(t *testing.T) {
+	// The detector trusts the brace counter without JSON validation, so any
+	// balanced {…} block is returned — including CSS-style ones. The sanitizer
+	// downstream handles content that isn't real JSON gracefully.
 	src := []byte(`body { color: red } {"valid":true}`)
 	spans := FindJSONSpans(src)
 
-	if len(spans) != 1 {
-		t.Fatalf("expected 1 valid span (CSS rejected), got %d", len(spans))
+	if len(spans) != 2 {
+		t.Fatalf("expected 2 spans (brace counter trusted), got %d", len(spans))
 	}
-	if string(spans[0].Content) != `{"valid":true}` {
-		t.Errorf("unexpected span content: %q", string(spans[0].Content))
+	if string(spans[1].Content) != `{"valid":true}` {
+		t.Errorf("unexpected second span content: %q", string(spans[1].Content))
 	}
 }
 

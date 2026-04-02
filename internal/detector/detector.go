@@ -3,8 +3,6 @@
 // It does NOT require the whole file to be valid JSON.
 package detector
 
-import "encoding/json"
-
 // Span marks the location of one JSON object or array within a larger byte slice.
 // Start is the index of the opening '{' or '['.
 // End is one past the closing '}' or ']' (so src[Start:End] is the raw JSON).
@@ -74,15 +72,13 @@ func FindJSONSpans(src []byte) []Span {
 			}
 			depth--
 			if depth == 0 {
-				// We just closed a top-level span. Validate it before keeping.
+				// We just closed a top-level span — trust the brace counter.
 				candidate := src[spanStart : i+1]
-				if isValidJSON(candidate) {
-					spans = append(spans, Span{
-						Start:   spanStart,
-						End:     i + 1,
-						Content: candidate,
-					})
-				}
+				spans = append(spans, Span{
+					Start:   spanStart,
+					End:     i + 1,
+					Content: candidate,
+				})
 			}
 		}
 	}
@@ -90,21 +86,3 @@ func FindJSONSpans(src []byte) []Span {
 	return spans
 }
 
-// isValidJSON returns true if candidate can be parsed by encoding/json as
-// an object or array. This filters out CSS, shell expressions, etc.
-// We use json.Unmarshal here (not a custom check) to stay correct for edge
-// cases like Unicode, escaped characters, and numbers.
-func isValidJSON(candidate []byte) bool {
-	var v interface{}
-	err := json.Unmarshal(candidate, &v)
-	if err != nil {
-		return false
-	}
-	// Only accept objects and arrays, not bare strings/numbers
-	switch v.(type) {
-	case map[string]interface{}, []interface{}:
-		return true
-	default:
-		return false
-	}
-}

@@ -118,7 +118,7 @@ func processFile(path, root string, cfg Config) error {
 		// Sanitize the JSON span
 		clean, err := sanitizer.Sanitize(span.Content)
 		if err != nil {
-			// If sanitization fails (shouldn't happen after isValidJSON), keep original
+			// If sanitization fails, keep the original span unchanged
 			fmt.Fprintf(os.Stderr, "warning: could not sanitize span in %q: %v\n", path, err)
 			out = append(out, span.Content...)
 		} else {
