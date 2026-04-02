@@ -20,6 +20,12 @@ var (
 	// emailRegex matches values that look like an email: something@something.something
 	// This intentionally simple pattern avoids false negatives on unusual domains.
 	emailRegex = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+
+	// trailingCommaRe matches a comma followed by optional whitespace and a closing
+	// brace or bracket. Standard JSON forbids trailing commas, but they're common in
+	// YAML-embedded test logs and JSON5-style files. We strip them before parsing.
+	// \s matches spaces, tabs, and newlines — so this handles multi-line JSON too.
+	trailingCommaRe = regexp.MustCompile(`,(\s*[}\]])`)
 )
 
 // Key lookup tables — using maps for O(1) lookup.
@@ -86,7 +92,13 @@ var phoneKeys = map[string]bool{
 // Key order may also change because Go maps are unordered. This is an accepted
 // trade-off for a sanitizer tool — the data is correct, just reformatted.
 func Sanitize(raw []byte) ([]byte, error) {
-	// Step 1: Parse the JSON into a generic Go value.
+	// Step 1: Strip trailing commas so we can handle "relaxed" JSON.
+	// Standard json.Unmarshal rejects trailing commas (e.g. {"a": 1,}),
+	// but they appear frequently in YAML test fixtures and JSON5-style files.
+	// The regex replaces ,<whitespace>} and ,<whitespace>] with just } or ].
+	raw = trailingCommaRe.ReplaceAll(raw, []byte("$1"))
+
+	// Step 2: Parse the JSON into a generic Go value.
 	// encoding/json decodes objects as map[string]interface{},
 	// arrays as []interface{}, strings as string, numbers as float64, etc.
 	var v interface{}
